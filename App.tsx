@@ -26,7 +26,7 @@ function App(): React.JSX.Element {
       <NavigationContainer>
         <Tab.Navigator
           screenOptions={({ route }) => ({
-            headerShown: true,
+            headerShown: false,
             tabBarIcon: ({  color, size }) => {
               let iconName: string;
 
