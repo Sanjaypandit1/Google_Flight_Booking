@@ -1,596 +1,590 @@
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TextInput, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  Alert,
-  FlatList
-} from 'react-native'
-import React, { useState } from 'react'
-import { searchFlights, Flight, FlightSearchParams } from '../services/flightService'
-import DateTimePicker from '@react-native-community/datetimepicker'
-import Icon from 'react-native-vector-icons/MaterialIcons'
+'use client';
 
-// Airport data for autocomplete suggestions
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import {
+  searchFlights,
+  type Flight,
+  type FlightSearchParams,
+  getAirportInfo,
+} from '../services/flightService';
+
+// Popular airport codes for info
 const POPULAR_AIRPORTS = [
-  { code: 'JFK', name: 'John F. Kennedy International Airport', city: 'New York' },
-  { code: 'LAX', name: 'Los Angeles International Airport', city: 'Los Angeles' },
+  {
+    code: 'JFK',
+    name: 'John F. Kennedy International Airport',
+    city: 'New York',
+  },
+  {
+    code: 'LAX',
+    name: 'Los Angeles International Airport',
+    city: 'Los Angeles',
+  },
   { code: 'LHR', name: 'Heathrow Airport', city: 'London' },
   { code: 'CDG', name: 'Charles de Gaulle Airport', city: 'Paris' },
   { code: 'DXB', name: 'Dubai International Airport', city: 'Dubai' },
   { code: 'SIN', name: 'Changi Airport', city: 'Singapore' },
-  { code: 'ORD', name: "O'Hare International Airport", city: 'Chicago' },
-  { code: 'DFW', name: 'Dallas/Fort Worth International Airport', city: 'Dallas' },
-  { code: 'DEN', name: 'Denver International Airport', city: 'Denver' },
-  { code: 'SFO', name: 'San Francisco International Airport', city: 'San Francisco' },
-]
+];
+
+interface RecentSearch {
+  id: string;
+  origin: string;
+  destination: string;
+  date: string;
+  timestamp: number;
+  resultsCount: number;
+}
+
+interface Booking {
+  id: string;
+  flightNumber: string;
+  airline: string;
+  from: string;
+  to: string;
+  date: string;
+  price: string;
+  status: 'completed' | 'upcoming' | 'cancelled';
+  bookingDate: number;
+  departureTime: string;
+  arrivalTime: string;
+  duration: string;
+}
 
 const FlightScreen = () => {
-  const [origin, setOrigin] = useState('JFK')
-  const [destination, setDestination] = useState('LAX')
-  const [date, setDate] = useState('2024-01-15')
-  const [flights, setFlights] = useState<Flight[]>([])
-  const [loading, setLoading] = useState(false)
-  const [searchPerformed, setSearchPerformed] = useState(false)
-  const [showOriginSuggestions, setShowOriginSuggestions] = useState(false)
-  const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false)
-  const [showDatePicker, setShowDatePicker] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [origin, setOrigin] = useState('JFK');
+  const [destination, setDestination] = useState('LAX');
+  const [date, setDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  const [originInfo, setOriginInfo] = useState<string>('');
+  const [destinationInfo, setDestinationInfo] = useState<string>('');
+
+  useEffect(() => {
+    loadRecentSearches();
+    updateAirportInfo(origin, setOriginInfo);
+    updateAirportInfo(destination, setDestinationInfo);
+  }, []);
+
+  useEffect(() => {
+    updateAirportInfo(origin, setOriginInfo);
+  }, [origin]);
+
+  useEffect(() => {
+    updateAirportInfo(destination, setDestinationInfo);
+  }, [destination]);
+
+  const updateAirportInfo = async (
+    code: string,
+    setInfo: (info: string) => void,
+  ) => {
+    if (code.length < 2) {
+      setInfo('');
+      return;
+    }
+
+    // Check if it's a known popular airport first
+    const popularAirport = POPULAR_AIRPORTS.find(
+      a => a.code === code.toUpperCase(),
+    );
+    if (popularAirport) {
+      setInfo(`${popularAirport.city} (${popularAirport.code})`);
+      return;
+    }
+
+    // Try to get info from API
+    try {
+      const info = await getAirportInfo(code.toUpperCase());
+      if (info) {
+        setInfo(`${info.municipality_name} (${info.iata_code})`);
+      } else {
+        setInfo('');
+      }
+    } catch (error) {
+      console.error('Error getting airport info:', error);
+      setInfo('');
+    }
+  };
+
+  const loadRecentSearches = async () => {
+    try {
+      const searches = await AsyncStorage.getItem('recentSearches');
+      if (searches) setRecentSearches(JSON.parse(searches));
+    } catch (error) {
+      console.error('Error loading recent searches:', error);
+    }
+  };
+
+  const saveRecentSearch = async (
+    search: FlightSearchParams,
+    resultsCount: number,
+  ) => {
+    const newSearch: RecentSearch = {
+      id: Date.now().toString(),
+      origin: search.origin,
+      destination: search.destination,
+      date: search.date,
+      timestamp: Date.now(),
+      resultsCount: resultsCount,
+    };
+    const updated = [newSearch, ...recentSearches.slice(0, 4)];
+    setRecentSearches(updated);
+    await AsyncStorage.setItem('recentSearches', JSON.stringify(updated));
+  };
+
+  const handleBookFlight = async (flight: Flight) => {
+    try {
+      const firstLeg = flight.legs[0];
+      const airline = firstLeg.carriers.marketing[0].name;
+
+      // Generate a flight number based on airline and random numbers
+      const airlineCode = airline.substring(0, 2).toUpperCase();
+      const flightNumber = `${airlineCode} ${Math.floor(
+        1000 + Math.random() * 9000,
+      )}`;
+
+      const newBooking: Booking = {
+        id: Date.now().toString(),
+        flightNumber: flightNumber,
+        airline: airline,
+        from: firstLeg.origin.iataCode,
+        to: firstLeg.destination.iataCode,
+        date: date.toISOString().split('T')[0],
+        price: flight.price.formatted,
+        status: 'upcoming',
+        bookingDate: Date.now(),
+        departureTime: formatTime(firstLeg.departure),
+        arrivalTime: formatTime(firstLeg.arrival),
+        duration: formatDuration(firstLeg.durationInMinutes),
+      };
+
+      // Save to booking history
+      const existingBookings = await AsyncStorage.getItem('bookingHistory');
+      let bookings: Booking[] = [];
+
+      if (existingBookings) {
+        bookings = JSON.parse(existingBookings);
+      }
+
+      bookings.unshift(newBooking);
+      await AsyncStorage.setItem('bookingHistory', JSON.stringify(bookings));
+
+      Alert.alert(
+        'Booking Confirmed!',
+        `Your flight from ${firstLeg.origin.iataCode} to ${firstLeg.destination.iataCode} on ${newBooking.date} has been booked.`,
+        [{ text: 'OK' }],
+      );
+    } catch (error) {
+      console.error('Error booking flight:', error);
+      Alert.alert('Error', 'Failed to book flight. Please try again.');
+    }
+  };
 
   const handleSearch = async () => {
-    if (!origin || !destination || !date) {
-      Alert.alert('Error', 'Please fill all fields')
-      return
+    if (!origin || !destination) {
+      Alert.alert('Error', 'Please enter origin and destination');
+      return;
     }
 
-    setLoading(true)
-    setSearchPerformed(true)
-    setShowOriginSuggestions(false)
-    setShowDestinationSuggestions(false)
-    
+    if (origin.toUpperCase() === destination.toUpperCase()) {
+      Alert.alert('Error', 'Origin and destination cannot be the same');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const searchParams: FlightSearchParams = {
+      const params: FlightSearchParams = {
         origin: origin.toUpperCase().trim(),
         destination: destination.toUpperCase().trim(),
-        date: date
-      }
-      
-      console.log('Searching with params:', searchParams)
-      const flightData = await searchFlights(searchParams)
-      setFlights(flightData)
-      
-      if (flightData.length === 0) {
-        Alert.alert('No flights found', 'Try different search parameters or dates')
-      }
+        date: date.toISOString().split('T')[0],
+      };
+      const results = await searchFlights(params);
+      setFlights(results);
+      await saveRecentSearch(params, results.length);
+      if (results.length === 0)
+        Alert.alert('No flights found', 'Try another date or route.');
     } catch (error: any) {
-      console.error('Search error:', error)
-      Alert.alert('Error', error.message || 'Failed to search flights. Please check your internet connection and try again.')
-      setFlights([])
+      Alert.alert(
+        'Error',
+        error.message || 'Unable to fetch flights. Try again.',
+      );
+      setFlights([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const swapAirports = () => {
+    setOrigin(destination);
+    setDestination(origin);
+  };
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
 
   const formatTime = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })
+      return new Date(dateString).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
     } catch (error) {
-      return '--:--'
+      return '--:--';
     }
-  }
+  };
 
   const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    return `${hours}h ${mins}m`
-  }
-
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })
-    } catch (error) {
-      return dateString
-    }
-  }
-
-  const handleOriginSelect = (airportCode: string) => {
-    setOrigin(airportCode)
-    setShowOriginSuggestions(false)
-  }
-
-  const handleDestinationSelect = (airportCode: string) => {
-    setDestination(airportCode)
-    setShowDestinationSuggestions(false)
-  }
-
-  const handleDateSelect = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false)
-    if (selectedDate) {
-      setSelectedDate(selectedDate)
-      const formattedDate = selectedDate.toISOString().split('T')[0]
-      setDate(formattedDate)
-    }
-  }
-
-  const getAirportName = (code: string) => {
-    const airport = POPULAR_AIRPORTS.find(ap => ap.code === code.toUpperCase())
-    return airport ? `${airport.city} (${airport.code})` : code
-  }
-
-  const getAirportSuggestions = (input: string) => {
-    if (!input) return POPULAR_AIRPORTS
-    return POPULAR_AIRPORTS.filter(airport =>
-      airport.code.toLowerCase().includes(input.toLowerCase()) ||
-      airport.city.toLowerCase().includes(input.toLowerCase()) ||
-      airport.name.toLowerCase().includes(input.toLowerCase())
-    )
-  }
-
-  const renderFlightItem = ({ item }: { item: Flight }) => (
-    <View style={styles.flightCard}>
-      <View style={styles.flightHeader}>
-        <Text style={styles.flightPrice}>{item.price.formatted}</Text>
-        <Text style={styles.flightCarrier}>
-          {item.legs[0]?.carriers?.marketing?.[0]?.name || 'Airline'}
-        </Text>
-      </View>
-      
-      <View style={styles.flightDetails}>
-        <View style={styles.timeSection}>
-          <Text style={styles.timeText}>{formatTime(item.legs[0]?.departure)}</Text>
-          <Text style={styles.airportText}>{item.legs[0]?.origin?.iataCode}</Text>
-          <Text style={styles.cityText}>{item.legs[0]?.origin?.city}</Text>
-        </View>
-        
-        <View style={styles.durationSection}>
-          <Text style={styles.durationText}>
-            {formatDuration(item.legs[0]?.durationInMinutes)}
-          </Text>
-          <View style={styles.flightLine}>
-            <View style={styles.line} />
-            <Text style={styles.arrow}>→</Text>
-          </View>
-        </View>
-        
-        <View style={styles.timeSection}>
-          <Text style={styles.timeText}>{formatTime(item.legs[0]?.arrival)}</Text>
-          <Text style={styles.airportText}>{item.legs[0]?.destination?.iataCode}</Text>
-          <Text style={styles.cityText}>{item.legs[0]?.destination?.city}</Text>
-        </View>
-      </View>
-      
-      {item.legs[0]?.stopCount && item.legs[0].stopCount > 0 && (
-        <View style={styles.stopInfo}>
-          <Text style={styles.stopText}>
-            {item.legs[0].stopCount} stop{item.legs[0].stopCount !== 1 ? 's' : ''}
-          </Text>
-        </View>
-      )}
-      
-      <TouchableOpacity style={styles.selectButton}>
-        <Text style={styles.selectButtonText}>Select Flight</Text>
-      </TouchableOpacity>
-    </View>
-  )
-
-  const renderSuggestionItem = (item: typeof POPULAR_AIRPORTS[0], onSelect: (code: string) => void) => (
-    <TouchableOpacity
-      style={styles.suggestionItem}
-      onPress={() => onSelect(item.code)}
-    >
-      <View>
-        <Text style={styles.suggestionCode}>{item.code}</Text>
-        <Text style={styles.suggestionCity}>{item.city}</Text>
-        <Text style={styles.suggestionName}>{item.name}</Text>
-      </View>
-    </TouchableOpacity>
-  )
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>✈️ Flight Search</Text>
-      
-      <View style={styles.searchContainer}>
-        {/* Origin Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>From</Text>
-          <View>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <Text style={styles.title}>✈️ Find Flights</Text>
+
+      {/* Inputs */}
+      <View style={styles.card}>
+        <View style={styles.routeRow}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>From</Text>
             <TextInput
               style={styles.input}
-              placeholder="Departure airport (e.g., JFK)"
               value={origin}
-              onChangeText={(text) => {
-                setOrigin(text)
-                setShowOriginSuggestions(text.length > 0)
-              }}
-              onFocus={() => setShowOriginSuggestions(origin.length > 0)}
-              onBlur={() => setTimeout(() => setShowOriginSuggestions(false), 200)}
+              placeholder="JFK"
+              maxLength={3}
+              onChangeText={setOrigin}
               autoCapitalize="characters"
-              autoCorrect={false}
             />
-            {showOriginSuggestions && (
-              <View style={styles.suggestionsContainer}>
-                <FlatList
-                  data={getAirportSuggestions(origin)}
-                  renderItem={({ item }) => renderSuggestionItem(item, handleOriginSelect)}
-                  keyExtractor={(item) => item.code}
-                  keyboardShouldPersistTaps="always"
-                />
-              </View>
-            )}
+            <Text style={styles.airportInfo}>{originInfo}</Text>
           </View>
-          {origin && (
-            <Text style={styles.airportNameText}>
-              {getAirportName(origin)}
-            </Text>
-          )}
-        </View>
 
-        {/* Destination Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>To</Text>
-          <View>
+          <TouchableOpacity onPress={swapAirports} style={styles.swapButton}>
+            <Icon name="swap-horiz" size={28} color="#1a73e8" />
+          </TouchableOpacity>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>To</Text>
             <TextInput
               style={styles.input}
-              placeholder="Destination airport (e.g., LAX)"
               value={destination}
-              onChangeText={(text) => {
-                setDestination(text)
-                setShowDestinationSuggestions(text.length > 0)
-              }}
-              onFocus={() => setShowDestinationSuggestions(destination.length > 0)}
-              onBlur={() => setTimeout(() => setShowDestinationSuggestions(false), 200)}
+              placeholder="LAX"
+              maxLength={3}
+              onChangeText={setDestination}
               autoCapitalize="characters"
-              autoCorrect={false}
             />
-            {showDestinationSuggestions && (
-              <View style={styles.suggestionsContainer}>
-                <FlatList
-                  data={getAirportSuggestions(destination)}
-                  renderItem={({ item }) => renderSuggestionItem(item, handleDestinationSelect)}
-                  keyExtractor={(item) => item.code}
-                  keyboardShouldPersistTaps="always"
-                />
-              </View>
-            )}
+            <Text style={styles.airportInfo}>{destinationInfo}</Text>
           </View>
-          {destination && (
-            <Text style={styles.airportNameText}>
-              {getAirportName(destination)}
-            </Text>
-          )}
         </View>
 
-        {/* Date Input */}
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Departure Date</Text>
           <TouchableOpacity
-            style={styles.dateInput}
+            style={styles.dateButton}
             onPress={() => setShowDatePicker(true)}
           >
             <Text style={styles.dateText}>{formatDate(date)}</Text>
-            <Icon name="calendar-today" size={20} color="#666" />
+            <Icon name="date-range" size={20} color="#555" />
           </TouchableOpacity>
         </View>
 
         {showDatePicker && (
           <DateTimePicker
-            value={selectedDate}
+            value={date}
             mode="date"
             display="default"
-            onChange={handleDateSelect}
             minimumDate={new Date()}
+            onChange={(_, d) => {
+              setShowDatePicker(false);
+              if (d) setDate(d);
+            }}
           />
         )}
-        
-        <TouchableOpacity 
-          style={[styles.searchButton, loading && styles.searchButtonDisabled]} 
+
+        <TouchableOpacity
+          style={[styles.searchBtn, loading && styles.searchBtnDisabled]}
           onPress={handleSearch}
           disabled={loading}
         >
-          <Text style={styles.searchButtonText}>
-            {loading ? 'Searching...' : 'Search Flights'}
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.searchText}>Search Flights</Text>
+          )}
         </TouchableOpacity>
       </View>
 
-      {searchPerformed && !loading && flights.length > 0 && (
-        <Text style={styles.resultsCount}>
-          Found {flights.length} flight{flights.length !== 1 ? 's' : ''}
-        </Text>
-      )}
+      {/* Results */}
+      <View style={styles.results}>
+        {flights.length > 0 && (
+          <Text style={styles.sectionTitle}>Available Flights</Text>
+        )}
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1a73e8" />
-          <Text style={styles.loadingText}>Searching for flights...</Text>
-        </View>
-      ) : (
-        <View style={styles.resultsContainer}>
-          {searchPerformed && flights.length === 0 ? (
-            <View style={styles.noResults}>
-              <Text style={styles.noResultsText}>No flights found</Text>
-              <Text style={styles.noResultsSubtext}>
-                Try different airports or dates. Sample: JFK → LAX on 2024-01-15
-              </Text>
+        {flights.map(f => {
+          const firstLeg = f.legs?.[0];
+          const stopCount = firstLeg?.stopCount || 0;
+
+          return (
+            <View key={f.id} style={styles.flightCard}>
+              <View style={styles.flightHeader}>
+                <Text style={styles.price}>{f.price.formatted}</Text>
+                <Text style={styles.airline}>
+                  {firstLeg?.carriers?.marketing?.[0]?.name || 'Airline'}
+                </Text>
+              </View>
+
+              <View style={styles.flightRoute}>
+                <View style={styles.routeSection}>
+                  <Text style={styles.time}>
+                    {formatTime(firstLeg?.departure || '')}
+                  </Text>
+                  <Text style={styles.airportCode}>
+                    {firstLeg?.origin?.iataCode}
+                  </Text>
+                  <Text style={styles.city}>{firstLeg?.origin?.city}</Text>
+                </View>
+
+                <View style={styles.routeMiddle}>
+                  <View style={styles.flightLine} />
+                  <Icon name="flight" size={16} color="#1a73e8" />
+                  <View style={styles.flightLine} />
+                  <Text style={styles.duration}>
+                    {formatDuration(firstLeg?.durationInMinutes || 0)}
+                  </Text>
+                  {stopCount > 0 && (
+                    <Text style={styles.stops}>
+                      {stopCount} stop{stopCount !== 1 ? 's' : ''}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.routeSection}>
+                  <Text style={styles.time}>
+                    {formatTime(firstLeg?.arrival || '')}
+                  </Text>
+                  <Text style={styles.airportCode}>
+                    {firstLeg?.destination?.iataCode}
+                  </Text>
+                  <Text style={styles.city}>{firstLeg?.destination?.city}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => handleBookFlight(f)}
+              >
+                <Text style={styles.selectButtonText}>Book Flight</Text>
+              </TouchableOpacity>
             </View>
-          ) : (
-            <FlatList
-              data={flights}
-              renderItem={renderFlightItem}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
+          );
+        })}
+      </View>
+
+      {/* Info about free API limitations */}
+      {flights.length > 0 && (
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            <Icon name="info" size={16} color="#1a73e8" /> Using simulated
+            flight data. Real flight search requires a paid API subscription.
+          </Text>
         </View>
       )}
-    </View>
-  )
-}
+    </ScrollView>
+  );
+};
 
-export default FlightScreen
+export default FlightScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-  },
+  container: { flex: 1, backgroundColor: '#f8f9fa', padding: 16 },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 24,
-    textAlign: 'center',
     color: '#1a73e8',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  searchContainer: {
+  card: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: 16,
     borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
     elevation: 4,
+    marginBottom: 20,
+  },
+  routeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   inputContainer: {
-    marginBottom: 20,
+    flex: 1,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#5f6368',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#dadce0',
-    borderRadius: 12,
-    padding: 16,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    textAlign: 'center',
     fontSize: 16,
-    backgroundColor: '#f8f9fa',
+    fontWeight: '500',
   },
-  dateInput: {
-    borderWidth: 1,
-    borderColor: '#dadce0',
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: '#f8f9fa',
+  airportInfo: {
+    fontSize: 12,
+    color: '#5f6368',
+    textAlign: 'center',
+    marginTop: 4,
+    height: 16,
+  },
+  swapButton: {
+    padding: 8,
+    marginHorizontal: 8,
+  },
+  dateButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#202124',
-  },
-  airportNameText: {
-    fontSize: 12,
-    color: '#5f6368',
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  suggestionsContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#dadce0',
-    borderRadius: 8,
-    maxHeight: 200,
-    zIndex: 1000,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  suggestionItem: {
     padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f4',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    marginBottom: 16,
   },
-  suggestionCode: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a73e8',
-  },
-  suggestionCity: {
-    fontSize: 14,
-    color: '#202124',
-  },
-  suggestionName: {
-    fontSize: 12,
-    color: '#5f6368',
-  },
-  searchButton: {
+  dateText: { fontSize: 16 },
+  searchBtn: {
     backgroundColor: '#1a73e8',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
   },
-  searchButtonDisabled: {
+  searchBtnDisabled: {
     backgroundColor: '#9e9e9e',
   },
-  searchButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  resultsCount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#5f6368',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  searchText: { color: 'white', fontWeight: '600', fontSize: 16 },
+  recent: { marginBottom: 20 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  recentItem: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 8,
+    padding: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#5f6368',
+  recentText: { marginLeft: 8, fontSize: 14, flex: 1 },
+  resultsCountText: {
+    fontSize: 12,
+    color: '#0f9d58',
+    fontWeight: '600',
+    marginLeft: 8,
   },
-  resultsContainer: {
-    flex: 1,
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
+  results: { paddingBottom: 40 },
   flightCard: {
     backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: 12,
     marginBottom: 16,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowRadius: 2,
   },
   flightHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  flightPrice: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a73e8',
-  },
-  flightCarrier: {
-    fontSize: 14,
-    color: '#5f6368',
-    fontWeight: '500',
-  },
-  flightDetails: {
+  price: { fontSize: 20, fontWeight: 'bold', color: '#1a73e8' },
+  airline: { fontSize: 14, fontWeight: '600', color: '#5f6368' },
+  flightRoute: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  timeSection: {
+  routeSection: {
     alignItems: 'center',
     flex: 1,
   },
-  timeText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#202124',
-    marginBottom: 4,
-  },
-  airportText: {
+  time: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
+  airportCode: {
     fontSize: 16,
+    fontWeight: '600',
     color: '#1a73e8',
-    fontWeight: 'bold',
     marginBottom: 2,
   },
-  cityText: {
-    fontSize: 12,
-    color: '#5f6368',
-  },
-  durationSection: {
+  city: { fontSize: 12, color: '#5f6368' },
+  routeMiddle: {
     alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 10,
-  },
-  durationText: {
-    fontSize: 12,
-    color: '#5f6368',
-    marginBottom: 8,
-    fontWeight: '500',
+    marginHorizontal: 8,
+    minWidth: 80,
   },
   flightLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    height: 1,
     width: '100%',
+    backgroundColor: '#ddd',
+    marginVertical: 4,
   },
-  line: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#dadce0',
-  },
-  arrow: {
-    color: '#1a73e8',
-    fontWeight: 'bold',
-    marginHorizontal: 4,
-  },
-  stopInfo: {
-    backgroundColor: '#f0f7ff',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  stopText: {
+  duration: {
     fontSize: 12,
-    color: '#1a73e8',
-    fontWeight: '500',
+    color: '#5f6368',
+    marginTop: 4,
+  },
+  stops: {
+    fontSize: 11,
+    color: '#e65100',
+    marginTop: 2,
   },
   selectButton: {
-    backgroundColor: '#f1f3f4',
+    backgroundColor: '#1a73e8',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   selectButtonText: {
-    color: '#1a73e8',
-    fontSize: 14,
+    color: 'white',
     fontWeight: '600',
   },
-  noResults: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
+  infoBox: {
+    backgroundColor: '#e3f2fd',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
   },
-  noResultsText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#5f6368',
-    marginBottom: 8,
-  },
-  noResultsSubtext: {
+  infoText: {
+    color: '#0d47a1',
     fontSize: 14,
-    color: '#5f6368',
-    textAlign: 'center',
-    lineHeight: 20,
   },
-})
+});
