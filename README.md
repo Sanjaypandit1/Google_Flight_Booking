@@ -33,44 +33,20 @@ A modern, feature-rich flight booking application built with React Native and Ne
 - **Authentication**: Custom authentication system
 - **API Integration**: RESTful flight search APIs
 
-## 📦 Installation
+### Installation
 
-### Prerequisites
-- Node.js (v16 or higher)
-- npm or Yarn
-- React Native CLI
-- Android Studio (for Android development)
-- Xcode (for iOS development)
+```bash
+# Clone the repository
+git clone https://github.com/Sanjaypandit1/Google_Flight_Booking.git
 
-### Setup Instructions
+# Navigate to the project directory
+cd Google_Flight_Booking
 
-1. **Clone the repository**
-   \`\`\`bash
-   git clone https://github.com/Sanjaypandit1/Google_Flight_Booking.git
-   cd Google_Flight_Booking
-   \`\`\`
+# Install dependencies
+npm install
 
-2. **Install dependencies**
-   \`\`\`bash
-   # Using npm
-   npm install
-   
-   # OR using Yarn
-   yarn install
-   \`\`\`
-
-
-4. **Start Metro Server**
-   \`\`\`bash
-   # Using npm
-   npm start
-
-
-5. **Run the application**
-   
-   **For Android:**
-   \`\`\`bash
-   npx react-native run-android
+# Run the app on Android
+npx react-native run-android
  
    
 ## 🎯 Usage
@@ -101,29 +77,9 @@ A modern, feature-rich flight booking application built with React Native and Ne
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Metro Server Issues:**
-\`\`\`bash
-npx react-native start --reset-cache
-\`\`\`
-
-**Android Build Errors:**
-\`\`\`bash
-cd android
-./gradlew clean
-cd ..
-npm run android
-\`\`\`
-
 
 ## 📞 Support
 
 For support and questions:
 - Create sanzu2244@gmail.ccom
-
-
----
 
