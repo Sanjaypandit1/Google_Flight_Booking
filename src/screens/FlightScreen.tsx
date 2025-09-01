@@ -1,12 +1,14 @@
 "use client"
 
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from "react-native"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import { searchFlights, type Flight, type FlightSearchParams, getAirportInfo } from "../services/flightService"
 import { useAuth } from "../Auth/auth" // Added auth context
+import { useFocusEffect } from "@react-navigation/native" // Added useFocusEffect import for screen focus detection
+import { useRoute } from "@react-navigation/native" // Added route params handling to pre-fill search form from navigation
 
 // Popular airport codes for info
 const POPULAR_AIRPORTS = [
@@ -24,6 +26,20 @@ const POPULAR_AIRPORTS = [
   { code: "CDG", name: "Charles de Gaulle Airport", city: "Paris" },
   { code: "DXB", name: "Dubai International Airport", city: "Dubai" },
   { code: "SIN", name: "Changi Airport", city: "Singapore" },
+]
+
+// Realistic airline names array for fallback when API doesn't provide airline names
+const REALISTIC_AIRLINES = [
+  "Delta Airlines",
+  "British Airways",
+  "Japan Airlines",
+  "American Airlines",
+  "United Airlines",
+  "Emirates",
+  "Lufthansa",
+  "Air France",
+  "Singapore Airlines",
+  "Qatar Airways",
 ]
 
 interface RecentSearch {
@@ -51,9 +67,15 @@ interface Booking {
 }
 
 const FlightScreen = () => {
-  const [origin, setOrigin] = useState("JFK")
-  const [destination, setDestination] = useState("LAX")
+  const route = useRoute()
+  const params = route.params as any
+
+  const [origin, setOrigin] = useState(params?.origin || "JFK")
+  const [destination, setDestination] = useState(params?.destination || "LAX")
   const [date, setDate] = useState(() => {
+    if (params?.date) {
+      return new Date(params.date)
+    }
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
     return tomorrow
@@ -65,6 +87,12 @@ const FlightScreen = () => {
   const [originInfo, setOriginInfo] = useState<string>("")
   const [destinationInfo, setDestinationInfo] = useState<string>("")
   const { user, isGuest, requireAuth } = useAuth() // Added auth context
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRecentSearches()
+    }, []),
+  )
 
   useEffect(() => {
     loadRecentSearches()
@@ -79,6 +107,12 @@ const FlightScreen = () => {
   useEffect(() => {
     updateAirportInfo(destination, setDestinationInfo)
   }, [destination])
+
+  useEffect(() => {
+    if (params?.origin && params?.destination && params?.date) {
+      handleSearch()
+    }
+  }, [params])
 
   const updateAirportInfo = async (code: string, setInfo: (info: string) => void) => {
     if (code.length < 2) {
@@ -130,6 +164,11 @@ const FlightScreen = () => {
     await AsyncStorage.setItem("recentSearches", JSON.stringify(updated))
   }
 
+  // Function to get realistic airline name based on flight ID
+  const getRealisticAirlineName = (flightId: string, apiAirlineName?: string) => {
+    return apiAirlineName || "Unknown Airline"
+  }
+
   const handleBookFlight = async (flight: Flight) => {
     // Check if user is authenticated
     if (!requireAuth()) {
@@ -154,7 +193,8 @@ const FlightScreen = () => {
 
       // Generate a flight number if not available
       const flightNumber = `FL${flight.id.padStart(4, "0")}`
-      const airline = firstLeg.carriers?.marketing?.[0]?.name || "Unknown Airline"
+      const airline = getRealisticAirlineName(flight.id, firstLeg.carriers?.marketing?.[0]?.name)
+
       const from = `${firstLeg.origin?.city} (${firstLeg.origin?.iataCode})`
       const to = `${firstLeg.destination?.city} (${firstLeg.destination?.iataCode})`
       const departureDate = new Date(firstLeg.departure)
@@ -261,7 +301,7 @@ const FlightScreen = () => {
   const handleViewDetails = (flight: Flight) => {
     const firstLeg = flight.legs?.[0]
     const flightNumber = `FL${flight.id.padStart(4, "0")}`
-    const airline = firstLeg?.carriers?.marketing?.[0]?.name || "Unknown Airline"
+    const airline = getRealisticAirlineName(flight.id, firstLeg?.carriers?.marketing?.[0]?.name)
 
     Alert.alert("Flight Details", `Flight: ${flightNumber}\nAirline: ${airline}\nPrice: ${flight.price.formatted}`)
   }
@@ -343,35 +383,41 @@ const FlightScreen = () => {
           const stopCount = firstLeg?.stopCount || 0
 
           return (
-            <View key={flight.id} style={styles.flightCard}>
-              <View style={styles.flightHeader}>
-                <Text style={styles.price}>{flight.price.formatted}</Text>
-                <Text style={styles.airline}>{firstLeg?.carriers?.marketing?.[0]?.name || "Airline"}</Text>
+            <View key={flight.id} style={styles.tripCard}>
+              <View style={styles.tripHeader}>
+                <View style={styles.airlineInfo}>
+                  <Icon name="flight" size={24} color="#1a73e8" />
+                  <View style={styles.airlineText}>
+                    <Text style={styles.airlineName}>
+                      {getRealisticAirlineName(flight.id, firstLeg?.carriers?.marketing?.[0]?.name)}
+                    </Text>
+                    <Text style={styles.flightNumber}>FL{flight.id.padStart(4, "0")}</Text>
+                  </View>
+                </View>
+                <Text style={styles.tripPrice}>{flight.price.formatted}</Text>
               </View>
 
-              <View style={styles.flightRoute}>
+              <View style={styles.routeContainer}>
                 <View style={styles.routeSection}>
-                  <Text style={styles.time}>{formatTime(firstLeg?.departure || "")}</Text>
-                  <Text style={styles.airportCode}>{firstLeg?.origin?.iataCode}</Text>
-                  <Text style={styles.city}>{firstLeg?.origin?.city}</Text>
+                  <Text style={styles.routeTime}>{formatTime(firstLeg?.departure || "")}</Text>
+                  <Text style={styles.routeAirport}>{firstLeg?.origin?.iataCode}</Text>
+                  <Text style={styles.routeCity}>{firstLeg?.origin?.city}</Text>
                 </View>
 
-                <View style={styles.routeMiddle}>
-                  <View style={styles.flightLine} />
-                  <Icon name="flight" size={16} color="#1a73e8" />
-                  <View style={styles.flightLine} />
-                  <Text style={styles.duration}>{formatDuration(firstLeg?.durationInMinutes || 0)}</Text>
+                <View style={styles.durationSection}>
+                  <Icon name="flight" size={20} color="#5f6368" />
+                  <Text style={styles.durationText}>{formatDuration(firstLeg?.durationInMinutes || 0)}</Text>
                   {stopCount > 0 && (
-                    <Text style={styles.stops}>
+                    <Text style={styles.stopsText}>
                       {stopCount} stop{stopCount !== 1 ? "s" : ""}
                     </Text>
                   )}
                 </View>
 
                 <View style={styles.routeSection}>
-                  <Text style={styles.time}>{formatTime(firstLeg?.arrival || "")}</Text>
-                  <Text style={styles.airportCode}>{firstLeg?.destination?.iataCode}</Text>
-                  <Text style={styles.city}>{firstLeg?.destination?.city}</Text>
+                  <Text style={styles.routeTime}>{formatTime(firstLeg?.arrival || "")}</Text>
+                  <Text style={styles.routeAirport}>{firstLeg?.destination?.iataCode}</Text>
+                  <Text style={styles.routeCity}>{firstLeg?.destination?.city}</Text>
                 </View>
               </View>
 
@@ -503,26 +549,46 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   results: { paddingBottom: 40 },
-  flightCard: {
+  tripCard: {
     backgroundColor: "white",
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 20,
     marginBottom: 16,
-    elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  flightHeader: {
+  tripHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  price: { fontSize: 20, fontWeight: "bold", color: "#1a73e8" },
-  airline: { fontSize: 14, fontWeight: "600", color: "#5f6368" },
-  flightRoute: {
+  airlineInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  airlineText: {
+    marginLeft: 12,
+  },
+  airlineName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#202124",
+  },
+  flightNumber: {
+    fontSize: 12,
+    color: "#5f6368",
+    marginTop: 2,
+  },
+  tripPrice: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1a73e8",
+  },
+  routeContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -532,31 +598,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
   },
-  time: { fontSize: 18, fontWeight: "bold", marginBottom: 4 },
-  airportCode: {
+  routeTime: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#202124",
+    marginBottom: 4,
+  },
+  routeAirport: {
     fontSize: 16,
     fontWeight: "600",
     color: "#1a73e8",
     marginBottom: 2,
   },
-  city: { fontSize: 12, color: "#5f6368" },
-  routeMiddle: {
+  routeCity: {
+    fontSize: 12,
+    color: "#5f6368",
+  },
+  durationSection: {
     alignItems: "center",
-    marginHorizontal: 8,
-    minWidth: 80,
+    flex: 1,
   },
-  flightLine: {
-    height: 1,
-    width: "100%",
-    backgroundColor: "#ddd",
-    marginVertical: 4,
-  },
-  duration: {
+  durationText: {
     fontSize: 12,
     color: "#5f6368",
     marginTop: 4,
+    fontWeight: "500",
   },
-  stops: {
+  stopsText: {
     fontSize: 11,
     color: "#e65100",
     marginTop: 2,
