@@ -233,7 +233,7 @@ const HistoryScreen = () => {
 
       <View style={styles.bookingFooter}>
         <Text style={styles.dateText}>Flight: {item.date}</Text>
-        <Text >{item.price}</Text>
+        <Text>{item.price}</Text>
       </View>
 
       <View style={styles.bookingActions}>
