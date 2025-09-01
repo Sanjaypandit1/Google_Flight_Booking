@@ -1,98 +1,129 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# ✈️ Flight Booking App
 
-# Getting Started
+A modern, feature-rich flight booking application built with React Native and Next.js, offering seamless flight search, booking, and user management capabilities.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## 🚀 Features
 
-## Step 1: Start Metro
+### 🔐 Authentication System
+- **Sign In/Sign Up**: Complete user registration and login flow
+- **Guest Mode**: Browse flights without creating an account
+- **Protected Booking**: Authentication required for flight reservations
+- **Profile Management**: User profile with logout functionality
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+### ✈️ Flight Search & Booking
+- **Real-time Flight Search**: Search flights between destinations
+- **Airline Integration**: Display real airline names (Delta, British Airways, Japan Airlines, etc.)
+- **Flight Details**: Comprehensive flight information with departure/arrival times
+- **Booking Protection**: Secure booking process for authenticated users
+- **Search History**: Save and manage recent searches
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+### 📱 User Experience
+- **Responsive Design**: Optimized for both mobile and web platforms
+- **Tab Navigation**: Easy navigation between Flights, Trips, History, and Profile
+- **Popular Destinations**: Curated list of trending travel destinations
+- **Booking History**: Track all your flight reservations
 
-```sh
-# Using npm
-npm start
+## 🛠️ Technologies Used
 
-# OR using Yarn
-yarn start
-```
+- **Frontend**: React Native, Next.js, TypeScript
+- **Styling**: Tailwind CSS, React Native StyleSheet
+- **Navigation**: React Navigation (Tab Navigator)
+- **Storage**: AsyncStorage for local data persistence
+- **State Management**: React Context API
+- **Authentication**: Custom authentication system
+- **API Integration**: RESTful flight search APIs
 
-## Step 2: Build and run your app
+## 📦 Installation
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or Yarn
+- React Native CLI
+- Android Studio (for Android development)
+- Xcode (for iOS development)
 
-### Android
+### Setup Instructions
 
-```sh
-# Using npm
+1. **Clone the repository**
+   \`\`\`bash
+   git clone https://github.com/Sanjaypandit1/Google_Flight_Booking.git
+   cd Google_Flight_Booking
+   \`\`\`
+
+2. **Install dependencies**
+   \`\`\`bash
+   # Using npm
+   npm install
+   
+   # OR using Yarn
+   yarn install
+   \`\`\`
+
+
+4. **Start Metro Server**
+   \`\`\`bash
+   # Using npm
+   npm start
+
+
+5. **Run the application**
+   
+   **For Android:**
+   \`\`\`bash
+   npx react-native run-android
+ 
+   
+## 🎯 Usage
+
+### Authentication Flow
+1. **First Launch**: Users see the authentication screen
+2. **Sign Up**: New users can create an account with email/password
+3. **Sign In**: Existing users can log in
+4. **Guest Mode**: Users can skip authentication to browse flights
+
+### Flight Search
+1. **Search Flights**: Enter origin, destination, and travel dates
+2. **View Results**: Browse available flights with airline details
+3. **Book Flight**: Authenticated users can book selected flights
+4. **Guest Warning**: Guests are prompted to sign in before booking
+
+### Profile Management
+- View user information (name, email)
+- Access booking history
+- Logout functionality
+
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Metro Server Issues:**
+\`\`\`bash
+npx react-native start --reset-cache
+\`\`\`
+
+**Android Build Errors:**
+\`\`\`bash
+cd android
+./gradlew clean
+cd ..
 npm run android
+\`\`\`
 
-# OR using Yarn
-yarn android
-```
 
-### iOS
+## 📞 Support
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+For support and questions:
+- Create sanzu2244@gmail.ccom
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
 
-```sh
-bundle install
-```
+---
 
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
-# Google_Flight_Booking
