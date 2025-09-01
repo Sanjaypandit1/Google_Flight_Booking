@@ -4,7 +4,7 @@ import { StyleSheet, Text, View, FlatList, TouchableOpacity, Alert } from "react
 import { useState, useCallback } from "react"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { useFocusEffect } from "@react-navigation/native" // ✅ import this
+import { useFocusEffect, useNavigation } from "@react-navigation/native" // ✅ import this
 
 interface SearchHistory {
   id: string
@@ -34,6 +34,7 @@ const HistoryScreen = () => {
   const [searchHistory, setSearchHistory] = useState<SearchHistory[]>([])
   const [bookingHistory, setBookingHistory] = useState<BookingHistory[]>([])
   const [activeTab, setActiveTab] = useState<"searches" | "bookings">("searches")
+  const navigation = useNavigation()
 
   // ✅ Reload when screen comes into focus
   useFocusEffect(
@@ -182,8 +183,16 @@ const HistoryScreen = () => {
     }
   }
 
+  const handleSearchItemClick = (searchItem: SearchHistory) => {
+    ;(navigation as any).navigate("Flights", {
+      origin: searchItem.origin,
+      destination: searchItem.destination,
+      date: searchItem.date,
+    })
+  }
+
   const renderSearchItem = ({ item }: { item: SearchHistory }) => (
-    <View style={styles.historyCard}>
+    <TouchableOpacity style={styles.historyCard} onPress={() => handleSearchItemClick(item)} activeOpacity={0.7}>
       <View style={styles.historyHeader}>
         <View style={styles.routeInfo}>
           <Icon name="search" size={20} color="#1a73e8" />
@@ -203,12 +212,18 @@ const HistoryScreen = () => {
 
       <View style={styles.searchFooter}>
         <Text style={styles.searchDateText}>Searched on {formatDate(item.timestamp)}</Text>
-        <TouchableOpacity style={styles.deleteButton} onPress={() => deleteSearch(item.id)}>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={(e) => {
+            e.stopPropagation() // Prevent navigation when deleting
+            deleteSearch(item.id)
+          }}
+        >
           <Icon name="delete" size={18} color="#ea4335" />
           <Text style={styles.deleteText}>Delete</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   )
 
   const renderBookingItem = ({ item }: { item: BookingHistory }) => (
@@ -233,7 +248,7 @@ const HistoryScreen = () => {
 
       <View style={styles.bookingFooter}>
         <Text style={styles.dateText}>Flight: {item.date}</Text>
-        <Text >{item.price}</Text>
+        <Text>{item.price}</Text>
       </View>
 
       <View style={styles.bookingActions}>

@@ -4,7 +4,8 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, Image } fr
 import type React from "react"
 import { useState, useEffect } from "react"
 import Icon from "react-native-vector-icons/MaterialIcons"
-import { useNavigation, NavigationProp } from "@react-navigation/native"
+import { useNavigation, type NavigationProp } from "@react-navigation/native"
+import { useAuth } from "../Auth/auth"
 
 // Define your root stack param list
 type RootStackParamList = {
@@ -24,33 +25,32 @@ interface User {
 
 const ProfileScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>()
-  const [user, setUser] = useState<User>({
-    name: "John Doe",
-    email: "john.doe@example.com",
-    phone: "+1 (555) 123-4567",
+  const { user, isGuest, signOut } = useAuth() // Added auth context
+
+  const [localUser, setLocalUser] = useState<User>({
+    name: user?.name || "Guest User",
+    email: user?.email || "guest@example.com",
+    phone: user?.phone || "+977 (555) 123-4567",
     profileImage: null,
   })
 
-  // Load user data from storage on component mount
   useEffect(() => {
-    // In a real app, you would load this from AsyncStorage or your backend
-    const loadUserData = async () => {
-      try {
-        // Simulate loading user data
-        const userData = {
-          name: "John Doe",
-          email: "john.doe@example.com",
-          phone: "+1 (555) 123-4567",
-          profileImage: null,
-        }
-        setUser(userData)
-      } catch (error) {
-        console.error("Failed to load user data:", error)
-      }
+    if (user) {
+      setLocalUser({
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "contact number",
+        profileImage: null,
+      })
+    } else if (isGuest) {
+      setLocalUser({
+        name: "Guest User",
+        email: "guest@example.com",
+        phone: "contact number",
+        profileImage: null,
+      })
     }
-
-    loadUserData()
-  }, [])
+  }, [user, isGuest])
 
   const handleFlightBook = () => {
     navigation.navigate("History")
@@ -70,45 +70,49 @@ const ProfileScreen = () => {
         "4. Cancellation policies vary by airline.\n" +
         "5. We are not responsible for airline schedule changes.\n\n" +
         "For our complete terms and conditions, please visit our website at www.flightapp.com/terms",
-      [{ text: "I Understand", style: "default" }]
+      [{ text: "I Understand", style: "default" }],
     )
   }
 
   const handleEditProfile = () => {
-    Alert.alert(
-      "Edit Profile",
-      "What would you like to update?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Change Name",
-          onPress: () => Alert.prompt("Change Name", "Enter your new name", (newName) => {
+    if (isGuest) {
+      Alert.alert("Sign In Required", "Please sign in to edit your profile.", [{ text: "OK", style: "default" }])
+      return
+    }
+
+    Alert.alert("Edit Profile", "What would you like to update?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Change Name",
+        onPress: () =>
+          Alert.prompt("Change Name", "Enter your new name", (newName) => {
             if (newName && newName.trim().length > 0) {
-              setUser({...user, name: newName})
+              setLocalUser({ ...localUser, name: newName })
             }
-          })
-        },
-        {
-          text: "Change Email",
-          onPress: () => Alert.prompt("Change Email", "Enter your new email", (newEmail) => {
+          }),
+      },
+      {
+        text: "Change Email",
+        onPress: () =>
+          Alert.prompt("Change Email", "Enter your new email", (newEmail) => {
             if (newEmail && newEmail.trim().length > 0) {
-              setUser({...user, email: newEmail})
+              setLocalUser({ ...localUser, email: newEmail })
             }
-          })
-        },
-        {
-          text: "Change Phone",
-          onPress: () => Alert.prompt("Change Phone", "Enter your new phone number", (newPhone) => {
+          }),
+      },
+      {
+        text: "Change Phone",
+        onPress: () =>
+          Alert.prompt("Change Phone", "Enter your new phone number", (newPhone) => {
             if (newPhone && newPhone.trim().length > 0) {
-              setUser({...user, phone: newPhone})
+              setLocalUser({ ...localUser, phone: newPhone })
             }
-          })
-        },
-      ]
-    )
+          }),
+      },
+    ])
   }
 
   const handleSupport = () => {
@@ -127,7 +131,7 @@ const ProfileScreen = () => {
         { text: "Call Support", onPress: () => Alert.alert("Call", "Would call 1-800-FLY-APP0") },
         { text: "Email Support", onPress: () => Alert.alert("Email", "Would email support@flightapp.com") },
         { text: "Close", style: "cancel" },
-      ]
+      ],
     )
   }
 
@@ -143,7 +147,7 @@ const ProfileScreen = () => {
         "• Access your booking history\n" +
         "• Get real-time flight status updates\n\n" +
         "Built with React Native ",
-      [{ text: "OK", style: "default" }]
+      [{ text: "OK", style: "default" }],
     )
   }
 
@@ -153,9 +157,13 @@ const ProfileScreen = () => {
       {
         text: "Logout",
         style: "destructive",
-        onPress: () => {
-          // Handle logout logic here
-          Alert.alert("Logged out", "You have been logged out successfully")
+        onPress: async () => {
+          try {
+            await signOut()
+            Alert.alert("Logged out", "You have been logged out successfully")
+          } catch (error) {
+            Alert.alert("Error", "Failed to logout. Please try again.")
+          }
         },
       },
     ])
@@ -199,33 +207,42 @@ const ProfileScreen = () => {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>👤 Profile</Text>
-        <Text style={styles.subtitle}>Manage your account and preferences</Text>
+        <Text style={styles.subtitle}>
+          {isGuest ? "Guest Mode - Sign in for full features" : "Manage your account and preferences"}
+        </Text>
       </View>
 
       {/* User Info Card */}
       <View style={styles.userCard}>
         <View style={styles.avatarContainer}>
-          {user.profileImage ? (
-            <Image source={{ uri: user.profileImage }} style={styles.avatarImage} />
+          {localUser.profileImage ? (
+            <Image source={{ uri: localUser.profileImage }} style={styles.avatarImage} />
           ) : (
-            <View style={styles.avatar}>
-              <Icon name="person" size={40} color="white" />
+            <View style={[styles.avatar, isGuest && styles.guestAvatar]}>
+              <Icon name={isGuest ? "person-outline" : "person"} size={40} color="white" />
             </View>
           )}
-          <TouchableOpacity style={styles.editAvatarButton}>
-            <Icon name="camera-alt" size={16} color="#1a73e8" />
-          </TouchableOpacity>
+          {!isGuest && (
+            <TouchableOpacity style={styles.editAvatarButton}>
+              <Icon name="camera-alt" size={16} color="#1a73e8" />
+            </TouchableOpacity>
+          )}
         </View>
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user.name}</Text>
+          <Text style={styles.userName}>{localUser.name}</Text>
           <View style={styles.userDetailItem}>
             <Icon name="email" size={16} color="#5f6368" />
-            <Text style={styles.userEmail}>{user.email}</Text>
+            <Text style={styles.userEmail}>{localUser.email}</Text>
           </View>
           <View style={styles.userDetailItem}>
             <Icon name="phone" size={16} color="#5f6368" />
-            <Text style={styles.userContact}>{user.phone}</Text>
+            <Text style={styles.userContact}>{localUser.phone}</Text>
           </View>
+          {isGuest && (
+            <View style={styles.guestBadge}>
+              <Text style={styles.guestBadgeText}>Guest Mode</Text>
+            </View>
+          )}
         </View>
         <TouchableOpacity style={styles.editProfileButton} onPress={handleEditProfile}>
           <Icon name="edit" size={16} color="#1a73e8" />
@@ -235,7 +252,12 @@ const ProfileScreen = () => {
 
       {/* Main Menu */}
       <ProfileSection title="Account">
-        <ProfileItem icon="flight" title="Flight Bookings" subtitle="See your booked flights" onPress={handleFlightBook} />
+        <ProfileItem
+          icon="flight"
+          title="Flight Bookings"
+          subtitle="See your booked flights"
+          onPress={handleFlightBook}
+        />
         <ProfileItem icon="card-travel" title="My Trips" subtitle="View your travel plans" onPress={handleTrips} />
       </ProfileSection>
 
@@ -460,5 +482,21 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 100,
+  },
+  guestAvatar: {
+    backgroundColor: "#9aa0a6",
+  },
+  guestBadge: {
+    backgroundColor: "#fef7e0",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  guestBadgeText: {
+    fontSize: 12,
+    color: "#f9ab00",
+    fontWeight: "600",
   },
 })

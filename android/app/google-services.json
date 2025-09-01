@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "549563175556",
+    "project_id": "flightbooking-be47a",
+    "storage_bucket": "flightbooking-be47a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:549563175556:android:a1e53c9fa1391af022e8d1",
+        "android_client_info": {
+          "package_name": "com.google_flight_booking"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "549563175556-p62au4dgfne2s8piqj8jltur2cvfjs2t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.google_flight_booking",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "549563175556-h3c8a1857pcd9edl44ml906u30ieh903.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqX9A7nFHIJnev51uEJI0TXQZutSaNazI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "549563175556-h3c8a1857pcd9edl44ml906u30ieh903.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
