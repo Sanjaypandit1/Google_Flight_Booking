@@ -42,6 +42,7 @@ function App(): React.JSX.Element {
                   break
                 case "Profile":
                   iconName = "person"
+
                   break
                 default:
                   iconName = "help"
@@ -63,13 +64,13 @@ function App(): React.JSX.Element {
               tabBarLabel: "Flights",
             }}
           />
-          <Tab.Screen
-            name="Trips"
-            component={TripScreen}
-            options={{
-              tabBarLabel: "Trips",
-            }}
-          />
+        <Tab.Screen
+  name="Trips"
+  component={TripScreen}
+  options={{
+    tabBarLabel: "Trips",
+  }}
+/>
           <Tab.Screen
             name="History"
             component={HistoryScreen}
