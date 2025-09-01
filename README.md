@@ -33,20 +33,23 @@ A modern, feature-rich flight booking application built with React Native and Ne
 - **Authentication**: Custom authentication system
 - **API Integration**: RESTful flight search APIs
 
-### Installation
+## 🚀 Installation & Setup
 
-```bash
-# Clone the repository
-git clone https://github.com/Sanjaypandit1/Google_Flight_Booking.git
-
-# Navigate to the project directory
+### 1️⃣ Clone the Repository
+```sh
+git https://github.com/Sanjaypandit1/Google_Flight_Booking.git
 cd Google_Flight_Booking
+```
 
-# Install dependencies
+### 2️⃣ Install Dependencies
+```sh
 npm install
+```
+### 2️⃣ Run the code
 
-# Run the app on Android
+```sh
 npx react-native run-android
+```
  
    
 ## 🎯 Usage
